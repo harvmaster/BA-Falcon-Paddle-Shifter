@@ -25,10 +25,16 @@
 
 #include <Arduino.h>
 #include <map>
+#include <Wire.h>
 
 // Pin definitions for the analog inputs
 const int MEDIA_PIN = 1;  // GPIO1 (ADC1_CH0) - Connected to the Media buttons
 const int CRUISE_PIN = 2; // GPIO2 (ADC2_CH0) - Connected to the Cruise Control buttons
+
+// I2C configuration
+const int I2C_SDA_PIN = 8; // GPIO20 - I2C SDA pin
+const int I2C_SCL_PIN = 9;  // GPIO21 - I2C SCL pin
+const int I2C_ADDRESS = 0x04; // I2C address of the slave device
 
 // ADC configuration - Set the ADC resolution to 12 bits for more precise readings
 const uint8_t ADC_WIDTH_12BIT = 12;
@@ -99,6 +105,9 @@ void setup() {
     pinMode(MEDIA_PIN, INPUT);
     pinMode(CRUISE_PIN, INPUT);
 
+    // Initialize I2C communication
+    Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
+
     Serial.println("ESP32-C3 Button Reader with Voltage Delta Approach");
 }
 
@@ -152,6 +161,18 @@ void readAndPrintADC(const char* name, int pin, ButtonState& state, const std::m
             state.currentButtonName = newButtonName;
             state.lastStableVoltage = voltage;
             state.lastDebounceTime = currentTime;
+            
+            // Send the button state change over I2C
+            Wire.beginTransmission(I2C_ADDRESS);
+            Wire.write(name[0]); // Send the button type (M or C)
+
+            // Loop through the button name and send each character
+            for (int i = 0; i < newButtonName.length(); i++) {
+                Wire.write(newButtonName[i]);
+            }
+
+            // Finish transmission
+            Wire.endTransmission();
         }
     }
 }
